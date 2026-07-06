@@ -389,6 +389,27 @@ local function buildCore(scope, runtime)
         return false, msg
     end))
 
+    -- ypcall - like pcall but preserves the original error value without any formatting
+    scope:defineGlobal("ypcall", native(function(fn, ...)
+        local args  = { ... }
+        local rets  = table.pack(pcall(function()
+            local r = callGuest(fn, args)
+            return table.unpack(r, 1, r.n)
+        end))
+        local ok = rets[1]
+        if ok then
+            return table.unpack(rets, 1, rets.n)
+        end
+        local sig = rets[2]
+        -- Re-raise control-flow signals - guest ypcall must NOT swallow them
+        if Error.isBreak(sig) or Error.isContinue(sig)
+            or Error.isReturn(sig) or Error.isGoto(sig) then
+            error(sig, 0)
+        end
+        -- Return the raw error value, no formatting at all
+        return false, sig
+    end))
+
     -- select
     scope:defineGlobal("select", native(function(index, ...)
         if index == "#" then

@@ -68,6 +68,7 @@ function Scope.new(parent, name)
         declaredAt        = {},   -- [varName] = declareCount at first declaration
         parentBarrier     = nil,  -- scope object whose vars are generation-gated
         parentBarrierCount = 0,   -- only vars with declaredAt <= this are visible
+        ci                = {},   -- [lowercase_name] = actual_name (case-insensitive global fallback)
     }, Scope)
 end
 
@@ -148,10 +149,23 @@ function Scope:findOwner(name)
 end
 
 -- Read a variable.  Returns nil if not declared anywhere.
+-- Falls back to a case-insensitive search of global (stdlib) scope entries
+-- so guest code can write Spawn or SPAWN for the spawn global.
 function Scope:get(name)
     local owner = self:findOwner(name)
     if owner then
         return owner.variables[name]
+    end
+    -- Case-insensitive fallback: walk the chain looking for a ci match.
+    -- Only triggers when the exact-case name is not declared anywhere.
+    local lower = string.lower(name)
+    local s = self
+    while s do
+        local actualName = s.ci[lower]
+        if actualName then
+            return s.variables[actualName]
+        end
+        s = s.parent
     end
     return nil
 end
@@ -258,7 +272,9 @@ end
 -- protected stdlibScope, so host-injected values land in the protected layer
 -- and are found by scope:get() from any child scope.
 function Scope:defineGlobal(name, value)
-    self:getGlobalScope():declareLocal(name, value)
+    local gs = self:getGlobalScope()
+    gs:declareLocal(name, value)
+    gs.ci[string.lower(name)] = name
 end
 
 -- --- Debug --------------------------------------------------------------

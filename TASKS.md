@@ -15,6 +15,7 @@ _Nothing currently claimed._
 
 | ID | Description | Status | Notes / Dependencies |
 |----|-------------|--------|----------------------|
+| - | Validate ypcall and case-insensitive globals in Studio | pending | ypcall added to StdLib, case-insensitive name resolution in Scope:get |
 
 ---
 
